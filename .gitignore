@@ -1,0 +1,18 @@
+# Database binary files (hanya simpan .sql dump)
+sistem_donasi/*.frm
+sistem_donasi/*.ibd
+sistem_donasi/db.opt
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Scratch/temp
+scratch_*
