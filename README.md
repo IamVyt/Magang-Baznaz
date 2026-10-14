@@ -1,55 +1,66 @@
 # SIM Keuangan UPZ BAZNAS Petrokimia Gresik
 
-Sistem Informasi Manajemen Keuangan untuk Unit Pengumpul Zakat (UPZ) BAZNAS PT Petrokimia Gresik. Aplikasi web berbasis PHP & MySQL untuk pencatatan dan pengelolaan dana zakat, infak, dan sedekah.
+Sistem Informasi Manajemen Keuangan untuk Unit Pengumpul Zakat (UPZ) BAZNAS PT Petrokimia Gresik.
+Aplikasi web berbasis PHP 8 & MySQL untuk pencatatan dan pengelolaan dana zakat, infak, dan sedekah yang transparan dan amanah.
 
 ## Fitur
-- **Dashboard** — Ringkasan statistik kas masuk/keluar, grafik cashflow, dan tabel transaksi terbaru
-- **Manajemen Transaksi** — CRUD penyumbang (kas masuk) dan penerima (kas keluar) dengan saldo otomatis
-- **Manajemen User** — CRUD akun petugas dengan hashing password
-- **Export Excel** — Laporan keuangan format `.xls` dengan blok tanda tangan resmi
+- **Dashboard** — Ringkasan statistik saldo, grafik cashflow 6 bulan
+- **Role-based Access Control** — Admin, Bendahara, Ketua (hak akses berbeda)
+- **Manajemen Transaksi** — Catat pemasukan/pengeluaran, void/soft-delete dengan alasan
+- **Audit Log** — Riwayat semua aktivitas (login, transaksi, perubahan user)
+- **Manajemen User** — CRUD akun petugas dengan role, paksa ganti password saat login pertama
+- **Export Excel** — Laporan keuangan dengan blok tanda tangan resmi
 - **Keamanan** — CSRF protection, prepared statements, login lockout, session management
 
 ## Teknologi
-- PHP 8.x
+- PHP 8.x (native, tanpa framework)
 - MySQL / MariaDB
-- Bootstrap 5
-- Chart.js
+- Bootstrap 5.3
+- Chart.js 4
 - Google Fonts (Plus Jakarta Sans, Inter)
 
 ## Instalasi
-1. Clone repository ini ke folder `htdocs` XAMPP:
-   ```bash
-   git clone https://github.com/IamVyt/Magang-Baznaz.git
-   ```
-2. Import database:
-   - Buka phpMyAdmin → buat database baru bernama `magang`
-   - Import file `database.sql` atau `sistem_donasi/sim_keuangan.sql`
-3. Sesuaikan konfigurasi database di `koneksi.php` jika diperlukan
-4. Akses melalui browser: `http://localhost/Magang-Baznaz/`
+1. Clone/extract ke folder `htdocs` XAMPP
+2. Buka phpMyAdmin → buat database baru bernama `magang`
+3. Import file `database.sql`
+4. Jalankan file migrasi: `migrations/001_roles_audit_void.sql`
+5. Sesuaikan konfigurasi database di `koneksi.php` jika diperlukan
+6. Akses melalui browser: `http://localhost/Magang-Baznaz-main/`
 
-## Login Default
-- **Username:** `admin`
-- **Password:** `admin123`
+## Keamanan Akun Awal & Kredensial
+> **PENTING:** Repositori ini tidak menyimpan kata sandi default dalam bentuk teks terbuka (plaintext).
+> Semua akun administrator awal yang disertakan dalam seed wajib mengganti kata sandi pada saat pertama kali masuk (login) ke dalam sistem (`ganti_password = 1`).
+> Pendaftaran publik dinonaktifkan (`register.php`). Akun petugas baru hanya dapat dibuat oleh Administrator melalui menu **Kelola Pengguna**.
+
+## Peran (Role) Pengguna
+| Role       | Hak Akses |
+|------------|-----------|
+| **Admin**     | Semua fitur + kelola user + audit log |
+| **Bendahara** | Input/edit transaksi |
+| **Ketua**     | Lihat dashboard & laporan saja |
 
 ## Struktur Folder
 ```
 ├── assets/
 │   ├── style.css          # Stylesheet utama
 │   └── img/               # Gambar & maskot
-├── partials/              # Template partial
+├── migrations/            # File migrasi database
+├── partials/              # Template partial (header/footer)
 ├── sistem_donasi/         # SQL dump asli
-├── database.sql           # Full database dump
+├── database.sql           # Database schema awal
 ├── koneksi.php            # Koneksi database
-├── fungsi.php             # Helper functions & CSRF
+├── fungsi.php             # Helper functions, CSRF, role, audit
 ├── login.php              # Halaman login
-├── register.php           # Halaman registrasi
-├── index.php              # Dashboard utama
-├── edit.php               # Edit transaksi
-├── hapus.php              # Hapus transaksi
-├── users.php              # Manajemen user
-├── export_excel.php       # Export laporan Excel
-└── logout.php             # Logout
+├── logout.php             # Logout + audit
+├── ganti_password.php     # Paksa ganti password (login pertama)
+├── register.php           # DINONAKTIFKAN (redirect ke login)
+├── index.php              # Dashboard + transaksi
+├── edit.php               # Edit transaksi (admin/bendahara)
+├── hapus.php              # Void/batalkan transaksi
+├── users.php              # Manajemen user (admin only)
+├── audit.php              # Riwayat aktivitas (admin only)
+└── export_excel.php       # Export laporan Excel
 ```
 
 ## Lisensi
-Proyek tugas kuliah / magang — PT Petrokimia Gresik.
+Proyek magang — PT Petrokimia Gresik / BAZNAS.

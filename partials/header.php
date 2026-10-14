@@ -2,9 +2,11 @@
 $judul = $judul ?? 'Dashboard';
 $aktif = $aktif ?? 'dashboard';
 $flash = ambil_flash();
-$css_ver = @filemtime(__DIR__ . '/../assets/style.css') ?: time();
-$namaUser = $_SESSION['nama'] ?? 'Administrator';
+$css_ver     = @filemtime(__DIR__ . '/../assets/style.css') ?: time();
+$namaUser    = $_SESSION['nama'] ?? 'Administrator';
+$roleUser    = $_SESSION['role'] ?? 'admin';
 $inisialUser = strtoupper(substr($namaUser, 0, 1));
+$label_role  = ['admin' => 'Admin', 'bendahara' => 'Bendahara', 'ketua' => 'Ketua'];
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -25,7 +27,7 @@ $inisialUser = strtoupper(substr($namaUser, 0, 1));
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <div class="app-container">
-    <!-- SIDEBAR KIRI (SEPERTI MOCKUP OLATELINK) -->
+    <!-- SIDEBAR KIRI -->
     <aside class="app-sidebar" id="appSidebar">
         <div>
             <!-- Brand Logo -->
@@ -49,15 +51,34 @@ $inisialUser = strtoupper(substr($namaUser, 0, 1));
                     <i class="bi bi-wallet2"></i>
                     <span>Transaksi Kas</span>
                 </a>
+                <a href="muzakki.php" class="nav-item-btn <?= $aktif === 'muzakki' ? 'active' : '' ?>">
+                    <i class="bi bi-person-heart"></i>
+                    <span>Master Muzakki</span>
+                </a>
+                <a href="mustahik.php" class="nav-item-btn <?= $aktif === 'mustahik' ? 'active' : '' ?>">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Master Mustahik</span>
+                </a>
+                <a href="program.php" class="nav-item-btn <?= $aktif === 'program' ? 'active' : '' ?>">
+                    <i class="bi bi-tags"></i>
+                    <span>Kategori &amp; Program</span>
+                </a>
+                <a href="export_excel.php" class="nav-item-btn <?= $aktif === 'export' ? 'active' : '' ?>">
+                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                    <span>Ekspor Excel</span>
+                </a>
+                <?php if (is_admin()): ?>
                 <a href="users.php" class="nav-item-btn <?= $aktif === 'users' ? 'active' : '' ?>">
                     <i class="bi bi-people"></i>
                     <span>Kelola Pengguna</span>
                 </a>
-                <a href="export_excel.php" class="nav-item-btn">
-                    <i class="bi bi-file-earmark-spreadsheet"></i>
-                    <span>Ekspor Excel</span>
+                <a href="audit.php" class="nav-item-btn <?= $aktif === 'audit' ? 'active' : '' ?>">
+                    <i class="bi bi-journal-check"></i>
+                    <span>Riwayat Aktivitas</span>
                 </a>
-                <a href="logout.php" class="nav-item-btn text-danger mt-2" onclick="return confirm('Apakah Anda yakin ingin keluar?');">
+                <?php endif; ?>
+                <a href="logout.php" class="nav-item-btn text-danger mt-2"
+                   onclick="return confirm('Apakah Anda yakin ingin keluar?');">
                     <i class="bi bi-box-arrow-right"></i>
                     <span>Keluar Sistem</span>
                 </a>
@@ -68,7 +89,7 @@ $inisialUser = strtoupper(substr($namaUser, 0, 1));
         <div class="sidebar-footer-card">
             <span class="mini-badge">PETROKIMIA GRESIK</span>
             <div class="fw-bold small text-dark">Sistem Informasi Manajemen</div>
-            <div class="text-muted" style="font-size: 0.72rem;">Dana Zakat & Donasi</div>
+            <div class="text-muted" style="font-size: 0.72rem;">Dana Zakat &amp; Donasi</div>
         </div>
     </aside>
 
@@ -87,30 +108,34 @@ $inisialUser = strtoupper(substr($namaUser, 0, 1));
             </div>
 
             <div class="topbar-right">
-                <!-- Live Clock Badge (seperti di mockup) -->
+                <!-- Live Clock Badge -->
                 <div class="time-badge">
                     <i class="bi bi-clock me-1 text-primary"></i>
                     <span id="realtimeClock">--:-- WIB</span>
                 </div>
 
-                <!-- Notifikasi / Cepat Pengguna -->
-                <a href="users.php" class="icon-circle-btn" title="Kelola Pengguna & Akun">
+                <?php if (is_admin()): ?>
+                <a href="audit.php" class="icon-circle-btn" title="Riwayat Aktivitas">
                     <i class="bi bi-bell"></i>
                 </a>
+                <?php endif; ?>
 
-                <!-- User Profile Pill (seperti Audrey Manager di mockup) -->
+                <!-- User Profile Pill -->
                 <div class="dropdown">
                     <button class="user-profile-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="user-avatar-circle"><?= e($inisialUser) ?></div>
                         <div class="d-none d-sm-block text-start">
                             <strong><?= e($namaUser) ?></strong>
-                            <small>Petugas UPZ</small>
+                            <small><?= e($label_role[$roleUser] ?? 'Petugas') ?> UPZ</small>
                         </div>
                         <i class="bi bi-chevron-down ms-1 text-muted" style="font-size: 0.75rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="border-radius: 14px; padding: 8px;">
+                        <?php if (is_admin()): ?>
                         <li><a class="dropdown-item py-2" href="users.php"><i class="bi bi-person-gear me-2 text-primary"></i>Kelola Pengguna</a></li>
+                        <li><a class="dropdown-item py-2" href="audit.php"><i class="bi bi-journal-check me-2 text-primary"></i>Riwayat Aktivitas</a></li>
                         <li><hr class="dropdown-divider my-1"></li>
+                        <?php endif; ?>
                         <li><a class="dropdown-item py-2 text-danger" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i>Keluar</a></li>
                     </ul>
                 </div>

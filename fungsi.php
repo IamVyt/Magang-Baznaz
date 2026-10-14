@@ -9,21 +9,62 @@ if (session_status() === PHP_SESSION_NONE) {
 date_default_timezone_set('Asia/Jakarta');
 require_once __DIR__ . '/koneksi.php';
 
-// Gabungan data pemasukan dan pengeluaran dalam satu "tabel" virtual
-const TRANSAKSI = "(SELECT id, 'masuk' AS tipe, nama_penyumbang AS nama, jumlah_diterima AS jumlah, tanggal FROM penyumbang
-                    UNION ALL
-                    SELECT id, 'keluar' AS tipe, nama_penerima AS nama, jumlah_keluar AS jumlah, tanggal FROM penerima) t";
+// Virtual tabel transaksi terpadu dengan alias backward-compatible
+// Memuat nama_pihak sebagai 'nama', kategori_nama dari JOIN kategori_dana
+const TRANSAKSI = "(SELECT t.id, t.tipe,
+                            COALESCE(t.nama_pihak,'Hamba Allah') AS nama,
+                            t.jumlah, t.tanggal, t.keterangan,
+                            t.kategori_id, t.pihak_id, t.nomor_bukti,
+                            t.dibatalkan_at, t.alasan_batal, t.dibuat_oleh,
+                            kd.nama AS kategori_nama, kd.kode AS kategori_kode
+                     FROM transaksi t
+                     LEFT JOIN kategori_dana kd ON kd.id = t.kategori_id) t";
 
 // ---------- Helper tampilan ----------
 function e($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function rupiah($n) { return 'Rp ' . number_format((float)$n, 0, ',', '.'); }
 function redirect($url) { header("Location: $url"); exit(); }
 
-// ---------- Autentikasi ----------
+// ---------- Autentikasi & Role ----------
 function wajib_login() {
     if (($_SESSION['status'] ?? '') !== 'login') {
         redirect('login.php');
     }
+    if (!empty($_SESSION['ganti_password'])) {
+        $curPage = basename($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '');
+        if ($curPage !== 'ganti_password.php' && $curPage !== 'logout.php') {
+            redirect('ganti_password.php');
+        }
+    }
+}
+
+/**
+ * Cek apakah user yang login memiliki salah satu role yang diizinkan.
+ * Jika tidak, redirect ke index.php dengan pesan error.
+ */
+function wajib_role(array $roles) {
+    wajib_login();
+    $roleUser = $_SESSION['role'] ?? 'admin';
+    if (!in_array($roleUser, $roles, true)) {
+        flash('danger', 'Anda tidak memiliki izin untuk mengakses halaman tersebut.');
+        redirect('index.php');
+    }
+}
+
+/** Apakah user saat ini adalah admin? */
+function is_admin()  { return ($_SESSION['role'] ?? '') === 'admin'; }
+/** Apakah user saat ini bisa input transaksi? (admin atau bendahara) */
+function can_input() { return in_array($_SESSION['role'] ?? '', ['admin', 'bendahara'], true); }
+
+// ---------- IP Client ----------
+function ip_client() {
+    foreach (['HTTP_CLIENT_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] as $k) {
+        if (!empty($_SERVER[$k])) {
+            $ip = trim(explode(',', $_SERVER[$k])[0]);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+        }
+    }
+    return '0.0.0.0';
 }
 
 // ---------- CSRF ----------
@@ -83,13 +124,12 @@ function q_one($conn, $sql, $types = '', $params = []) {
 }
 
 // ---------- Saldo ----------
-// Saldo selalu dihitung dari data transaksi, lalu disalin ke tabel saldo
-// sehingga tidak mungkin selisih antara riwayat dan saldo.
+// Saldo dihitung dari transaksi terpadu yang BELUM di-void (dibatalkan_at IS NULL)
 function hitung_saldo($conn) {
-    $r = mysqli_fetch_row(mysqli_query($conn,
-        "SELECT (SELECT COALESCE(SUM(jumlah_diterima),0) FROM penyumbang)
-              - (SELECT COALESCE(SUM(jumlah_keluar),0) FROM penerima)"));
-    return round((float)$r[0], 2);
+    $r = q_one($conn,
+        "SELECT COALESCE(SUM(CASE WHEN tipe='masuk' THEN jumlah ELSE -jumlah END), 0) AS saldo
+         FROM transaksi WHERE dibatalkan_at IS NULL");
+    return round((float)($r['saldo'] ?? 0), 2);
 }
 function sinkron_saldo($conn) {
     $saldo = hitung_saldo($conn);
@@ -116,12 +156,42 @@ function jalankan_transaksi($conn, callable $aksi) {
     }
 }
 
+// ---------- Audit Log ----------
+/**
+ * Catat aktivitas ke tabel audit_log.
+ * @param mixed       $conn      koneksi mysqli (opsional, pakai global jika null)
+ * @param string      $aksi      login|logout|tambah|edit|void|hapus_user|tambah_user|edit_user
+ * @param string|null $tabel     nama tabel yang terpengaruh
+ * @param int|null    $record_id id record yang terpengaruh
+ * @param array|null  $data_lama data sebelum perubahan
+ * @param array|null  $data_baru data sesudah perubahan
+ */
+function catat_audit($conn, string $aksi, ?string $tabel = null, ?int $record_id = null,
+                     ?array $data_lama = null, ?array $data_baru = null): void {
+    $user_id   = $_SESSION['user_id'] ?? null;
+    $username  = $_SESSION['username'] ?? null;
+    $ip        = ip_client();
+    $lama_json = $data_lama ? json_encode($data_lama, JSON_UNESCAPED_UNICODE) : null;
+    $baru_json = $data_baru ? json_encode($data_baru, JSON_UNESCAPED_UNICODE) : null;
+
+    try {
+        q($conn,
+            "INSERT INTO audit_log (user_id, username, aksi, tabel, record_id, data_lama, data_baru, ip)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            'isssisss',
+            [$user_id, $username, $aksi, $tabel, $record_id, $lama_json, $baru_json, $ip]);
+    } catch (Throwable $e) {
+        // Jangan gagalkan proses utama hanya karena log gagal dicatat
+    }
+}
+
 // ---------- Filter pencarian riwayat ----------
 function filter_transaksi($dengan_tipe = true) {
     $cari    = trim($_GET['cari'] ?? '');
     $mulai   = tanggal_valid($_GET['tgl_mulai'] ?? '') ? $_GET['tgl_mulai'] : '';
     $selesai = tanggal_valid($_GET['tgl_selesai'] ?? '') ? $_GET['tgl_selesai'] : '';
     $tipe    = $_GET['tipe'] ?? 'semua';
+    $kategori = (int)($_GET['kategori'] ?? 0);
     if (!in_array($tipe, ['masuk', 'keluar'], true)) $tipe = 'semua';
 
     if ($mulai !== '' && $selesai !== '' && $mulai > $selesai) {
@@ -130,7 +200,8 @@ function filter_transaksi($dengan_tipe = true) {
 
     $sql = ''; $types = ''; $params = [];
     if ($cari !== '') {
-        $sql .= " AND nama LIKE ?"; $types .= 's';
+        $sql .= " AND (nama LIKE ? OR keterangan LIKE ?)"; $types .= 'ss';
+        $params[] = '%' . addcslashes($cari, '%_\\') . '%';
         $params[] = '%' . addcslashes($cari, '%_\\') . '%';
     }
     if ($mulai !== '') {
@@ -145,5 +216,9 @@ function filter_transaksi($dengan_tipe = true) {
         $sql .= " AND tipe = ?"; $types .= 's';
         $params[] = $tipe;
     }
-    return compact('sql', 'types', 'params', 'cari', 'mulai', 'selesai', 'tipe');
+    if ($kategori > 0) {
+        $sql .= " AND kategori_id = ?"; $types .= 'i';
+        $params[] = $kategori;
+    }
+    return compact('sql', 'types', 'params', 'cari', 'mulai', 'selesai', 'tipe', 'kategori');
 }

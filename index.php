@@ -1,41 +1,68 @@
 <?php
 require 'fungsi.php';
 wajib_login();
+wajib_role(['admin', 'bendahara', 'ketua']);
 
 // ============================================================
-// PROSES TAMBAH TRANSAKSI
+// PROSES TAMBAH TRANSAKSI (Hanya Admin & Bendahara)
 // ============================================================
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    if (!can_input()) {
+        flash('danger', 'Anda tidak memiliki izin untuk mencatat transaksi.');
+        redirect('index.php');
+    }
     if (!csrf_valid()) {
         flash('danger', 'Sesi formulir kedaluwarsa. Silakan ulangi.');
         redirect('index.php');
     }
-    $tipe   = $_POST['tipe'] ?? '';
-    $nama   = trim($_POST['nama'] ?? '');
-    $jumlah = validasi_jumlah($_POST['jumlah'] ?? '');
-    $tgl    = $_POST['tanggal'] ?? '';
+    $tipe        = $_POST['tipe'] ?? '';
+    $kategori_id = (int)($_POST['kategori_id'] ?? 0) ?: null;
+    $pihak_id    = (int)($_POST['pihak_id'] ?? 0) ?: null;
+    $nama        = trim($_POST['nama'] ?? '');
+    $jumlah      = validasi_jumlah($_POST['jumlah'] ?? '');
+    $tgl         = $_POST['tanggal'] ?? '';
+    $keterangan  = trim($_POST['keterangan'] ?? '');
+
+    if ($nama === '' && $pihak_id) {
+        $p = q_one($conn, $tipe === 'masuk' ? "SELECT nama FROM muzakki WHERE id = ?" : "SELECT nama FROM mustahik WHERE id = ?", 'i', [$pihak_id]);
+        if ($p) $nama = $p['nama'];
+    }
+
+    if ($nama === '' && $tipe === 'masuk') {
+        $nama = 'Hamba Allah';
+    }
 
     if (!in_array($tipe, ['masuk', 'keluar'], true)) {
         flash('danger', 'Jenis transaksi tidak valid.');
-    } elseif ($nama === '' || mb_strlen($nama) > 100) {
-        flash('danger', 'Nama wajib diisi dan maksimal 100 karakter.');
+    } elseif ($nama === '' || mb_strlen($nama) > 150) {
+        flash('danger', 'Nama pihak wajib diisi dan maksimal 150 karakter.');
+    } elseif (!$kategori_id) {
+        flash('danger', 'Kategori transaksi wajib dipilih.');
     } elseif ($jumlah === false) {
         flash('danger', 'Jumlah harus berupa angka bulat lebih dari 0.');
     } elseif (!tanggal_valid($tgl) || $tgl > date('Y-m-d')) {
         flash('danger', 'Tanggal tidak valid atau melebihi hari ini.');
     } else {
-        $galat = jalankan_transaksi($conn, function () use ($conn, $tipe, $nama, $jumlah, $tgl) {
-            if ($tipe === 'masuk') {
-                q($conn, "INSERT INTO penyumbang (nama_penyumbang, jumlah_diterima, tanggal) VALUES (?, ?, TIMESTAMP(?, CURTIME()))",
-                    'sds', [$nama, $jumlah, $tgl]);
-            } else {
-                q($conn, "INSERT INTO penerima (nama_penerima, jumlah_keluar, tanggal) VALUES (?, ?, TIMESTAMP(?, CURTIME()))",
-                    'sds', [$nama, $jumlah, $tgl]);
-            }
+        $new_id  = null;
+        $user_id = $_SESSION['user_id'] ?? null;
+        $galat   = jalankan_transaksi($conn, function () use ($conn, $tipe, $kategori_id, $pihak_id, $nama, $jumlah, $tgl, $keterangan, $user_id, &$new_id) {
+            q($conn,
+                "INSERT INTO transaksi (tipe, kategori_id, pihak_id, nama_pihak, jumlah, tanggal, keterangan, dibuat_oleh)
+                 VALUES (?, ?, ?, ?, ?, TIMESTAMP(?, CURTIME()), ?, ?)",
+                'siisdssi',
+                [$tipe, $kategori_id, $pihak_id, $nama, $jumlah, $tgl, $keterangan ?: null, $user_id]);
+            $new_id = mysqli_insert_id($conn);
         });
         if ($galat) {
             flash('danger', $galat);
         } else {
+            catat_audit($conn, 'tambah', 'transaksi', $new_id, null, [
+                'nama'        => $nama,
+                'tipe'        => $tipe,
+                'kategori_id' => $kategori_id,
+                'jumlah'      => $jumlah,
+                'tanggal'     => $tgl,
+            ]);
             flash('success', ($tipe === 'masuk' ? 'Pemasukan' : 'Pengeluaran') . ' kas berhasil dicatat.');
         }
     }
@@ -45,16 +72,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 // ============================================================
 // DATA DASHBOARD & FILTER
 // ============================================================
+$kategori_masuk  = q_all($conn, "SELECT id, nama FROM kategori_dana WHERE tipe = 'masuk' AND aktif = 1 ORDER BY nama ASC");
+$kategori_keluar = q_all($conn, "SELECT id, nama FROM kategori_dana WHERE tipe = 'keluar' AND aktif = 1 ORDER BY nama ASC");
+$semua_kategori  = q_all($conn, "SELECT id, nama, tipe FROM kategori_dana WHERE aktif = 1 ORDER BY tipe ASC, nama ASC");
+$muzakki_list    = q_all($conn, "SELECT id, nama, nik_nip FROM muzakki WHERE aktif = 1 ORDER BY nama ASC");
+$mustahik_list   = q_all($conn, "SELECT id, nama, asnaf FROM mustahik WHERE aktif = 1 ORDER BY nama ASC");
+
 $f  = filter_transaksi(true);   // untuk tabel riwayat
 $ft = filter_transaksi(false);  // untuk kartu total
-$adaFilter = $f['cari'] !== '' || $f['mulai'] !== '' || $f['selesai'] !== '' || $f['tipe'] !== 'semua';
+$adaFilter = $f['cari'] !== '' || $f['mulai'] !== '' || $f['selesai'] !== '' || $f['tipe'] !== 'semua' || $f['kategori'] > 0;
 
 $saldo = hitung_saldo($conn);
 
 $total = ['masuk' => 0, 'keluar' => 0];
 $jumlahTrx = ['masuk' => 0, 'keluar' => 0];
 foreach (q_all($conn,
-    "SELECT tipe, COALESCE(SUM(jumlah),0) AS total, COUNT(*) AS n FROM " . TRANSAKSI . " WHERE 1=1 " . $ft['sql'] . " GROUP BY tipe",
+    "SELECT tipe, COALESCE(SUM(jumlah),0) AS total, COUNT(*) AS n FROM " . TRANSAKSI . " WHERE dibatalkan_at IS NULL " . $ft['sql'] . " GROUP BY tipe",
     $ft['types'], $ft['params']) as $r) {
     $total[$r['tipe']] = (float)$r['total'];
     $jumlahTrx[$r['tipe']] = (int)$r['n'];
@@ -75,6 +108,7 @@ $qs = array_filter([
     'tgl_mulai'   => $f['mulai'],
     'tgl_selesai' => $f['selesai'],
     'tipe'        => $f['tipe'] === 'semua' ? '' : $f['tipe'],
+    'kategori'    => $f['kategori'] > 0 ? $f['kategori'] : '',
 ], fn($v) => $v !== '');
 
 // Data grafik 6 bulan terakhir
@@ -88,7 +122,7 @@ for ($i = 0; $i < 6; $i++) {
     $d->modify('+1 month');
 }
 foreach (q_all($conn,
-    "SELECT DATE_FORMAT(tanggal, '%Y-%m') AS bln, tipe, SUM(jumlah) AS total FROM " . TRANSAKSI . " WHERE tanggal >= ? GROUP BY bln, tipe",
+    "SELECT DATE_FORMAT(tanggal, '%Y-%m') AS bln, tipe, SUM(jumlah) AS total FROM " . TRANSAKSI . " WHERE dibatalkan_at IS NULL AND tanggal >= ? GROUP BY bln, tipe",
     's', [array_key_first($bulan) . '-01 00:00:00']) as $r) {
     if (isset($bulan[$r['bln']])) $bulan[$r['bln']][$r['tipe']] = (float)$r['total'];
 }
@@ -175,12 +209,14 @@ require 'partials/header.php';
 
     <div class="filter-actions-group">
         <!-- Tombol Catat Transaksi Cepat -->
+        <?php if (can_input()): ?>
         <button type="button" class="btn-petro-green" data-bs-toggle="modal" data-bs-target="#modalTambah" data-tipe="masuk">
             <i class="bi bi-plus-lg me-1"></i>Pemasukan
         </button>
         <button type="button" class="btn-petro-yellow" data-bs-toggle="modal" data-bs-target="#modalTambah" data-tipe="keluar">
             <i class="bi bi-dash-lg me-1"></i>Pengeluaran
         </button>
+        <?php endif; ?>
 
         <!-- Tombol Buka Filter Pencarian -->
         <button type="button" class="btn-petro-outline" data-bs-toggle="collapse" data-bs-target="#boxFilterLanjutan" aria-expanded="<?= $adaFilter ? 'true' : 'false' ?>">
@@ -200,18 +236,29 @@ require 'partials/header.php';
     <div class="dashboard-card p-3 shadow-sm border">
         <form method="GET" class="row g-2 align-items-end">
             <input type="hidden" name="tipe" value="<?= e($f['tipe']) ?>">
-            <div class="col-md-4">
-                <label class="form-label small fw-bold text-muted mb-1">Cari Nama Donatur / Penerima</label>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted mb-1">Cari Nama / Keterangan</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                    <input type="text" name="cari" class="form-control border-start-0" placeholder="Ketik nama..." value="<?= e($f['cari']) ?>">
+                    <input type="text" name="cari" class="form-control border-start-0" placeholder="Ketik nama / catatan..." value="<?= e($f['cari']) ?>">
                 </div>
             </div>
             <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted mb-1">Kategori Dana</label>
+                <select name="kategori" class="form-select">
+                    <option value="">-- Semua Kategori Dana --</option>
+                    <?php foreach ($semua_kategori as $k): ?>
+                        <option value="<?= (int)$k['id'] ?>" <?= $f['kategori'] === (int)$k['id'] ? 'selected' : '' ?>>
+                            [<?= $k['tipe'] === 'masuk' ? 'Masuk' : 'Keluar' ?>] <?= e($k['nama']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label small fw-bold text-muted mb-1">Dari Tanggal</label>
                 <input type="date" name="tgl_mulai" class="form-control" value="<?= e($f['mulai']) ?>">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small fw-bold text-muted mb-1">Sampai Tanggal</label>
                 <input type="date" name="tgl_selesai" class="form-control" value="<?= e($f['selesai']) ?>">
             </div>
@@ -267,40 +314,63 @@ require 'partials/header.php';
                                     </div>
                                     <div class="empty-state-title">Tidak Ada Transaksi</div>
                                     <div class="empty-state-sub">Belum ada pencatatan transaksi yang cocok dengan kriteria yang Anda cari.</div>
+                                    <?php if (can_input()): ?>
                                     <button type="button" class="btn-petro-green mt-3" data-bs-toggle="modal" data-bs-target="#modalTambah" data-tipe="masuk">
                                         <i class="bi bi-plus-lg me-1"></i>Catat Transaksi Pertama
                                     </button>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($riwayat as $r): $masuk = ($r['tipe'] === 'masuk'); ?>
-                            <tr>
+                        <?php foreach ($riwayat as $r): $masuk = ($r['tipe'] === 'masuk'); $isVoid = ($r['dibatalkan_at'] !== null); ?>
+                            <tr class="<?= $isVoid ? 'opacity-50' : '' ?>" title="<?= $isVoid ? 'Void: '.e($r['alasan_batal']??'-') : '' ?>">
                                 <td class="text-muted small text-nowrap">
                                     <i class="bi bi-calendar3 me-1 text-primary"></i><?= date('d/m/Y', strtotime($r['tanggal'])) ?>
                                 </td>
                                 <td>
                                     <div class="fw-bold text-dark"><?= e($r['nama']) ?></div>
-                                    <small class="text-muted">ID: #<?= (int)$r['id'] ?></small>
+                                    <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                                        <?php if (!empty($r['kategori_nama'])): ?>
+                                            <span class="badge bg-light text-primary border" style="font-size: 0.68rem; font-weight: 600;">
+                                                <i class="bi bi-tag me-1"></i><?= e($r['kategori_nama']) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($r['keterangan'])): ?>
+                                            <small class="text-muted text-truncate" style="max-width: 180px;" title="<?= e($r['keterangan']) ?>">
+                                                <i class="bi bi-info-circle me-1"></i><?= e($r['keterangan']) ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                                 <td>
+                                    <?php if ($isVoid): ?>
+                                    <span class="badge-friendly" style="background:#fee2e2;color:#b91c1c;">
+                                        <span class="badge-dot" style="background:#ef4444;"></span>Void
+                                    </span>
+                                    <?php else: ?>
                                     <span class="badge-friendly <?= $masuk ? 'badge-masuk' : 'badge-keluar' ?>">
                                         <span class="badge-dot"></span>
                                         <?= $masuk ? 'Pemasukan' : 'Pengeluaran' ?>
                                     </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-end text-nowrap <?= $masuk ? 'nominal-in' : 'nominal-out' ?>">
                                     <?= $masuk ? '+' : '-' ?> <?= rupiah($r['jumlah']) ?>
                                 </td>
                                 <td class="text-end text-nowrap">
-                                    <a href="edit.php?tipe=<?= e($r['tipe']) ?>&id=<?= (int)$r['id'] ?>" class="btn-icon-action" title="Ubah Data">
+                                    <?php if ($isVoid): ?>
+                                    <span class="text-danger small"><i class="bi bi-slash-circle"></i> Void</span>
+                                    <?php elseif (can_input()): ?>
+                                    <a href="edit.php?id=<?= (int)$r['id'] ?>" class="btn-icon-action" title="Ubah Data">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <button type="button" class="btn-icon-action danger" title="Hapus Data"
-                                            data-bs-toggle="modal" data-bs-target="#modalHapus"
+                                    <button type="button" class="btn-icon-action danger" title="Batalkan (Void)"
+                                            data-bs-toggle="modal" data-bs-target="#modalVoid"
                                             data-tipe="<?= e($r['tipe']) ?>" data-id="<?= (int)$r['id'] ?>" data-nama="<?= e($r['nama']) ?>">
-                                        <i class="bi bi-trash"></i>
+                                        <i class="bi bi-slash-circle"></i>
                                     </button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -377,6 +447,7 @@ require 'partials/header.php';
     </div>
 </div>
 
+<?php if (can_input()): ?>
 <!-- ============================================================
      4. MODAL CATAT TRANSAKSI (PEMASUKAN / PENGELUARAN)
      ============================================================ -->
@@ -398,26 +469,77 @@ require 'partials/header.php';
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body p-4">
+                <!-- Pemilihan Pihak (Muzakki / Mustahik) -->
+                <div class="mb-3" id="groupPihakMasuk">
+                    <label class="form-label small fw-bold text-muted">Pilih Muzakki (Master Donatur)</label>
+                    <select id="selectMuzakki" class="form-select select-pihak">
+                        <option value="">-- Donatur Baru / Input Cepat --</option>
+                        <?php foreach ($muzakki_list as $m): ?>
+                            <option value="<?= (int)$m['id'] ?>" data-nama="<?= e($m['nama']) ?>">
+                                <?= e($m['nama']) ?> <?= !empty($m['nik_nip']) ? '('.e($m['nik_nip']).')' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="groupPihakKeluar" style="display:none;">
+                    <label class="form-label small fw-bold text-muted">Pilih Mustahik (Master Penerima)</label>
+                    <select id="selectMustahik" class="form-select select-pihak">
+                        <option value="">-- Penerima Baru / Input Cepat --</option>
+                        <?php foreach ($mustahik_list as $m): ?>
+                            <option value="<?= (int)$m['id'] ?>" data-nama="<?= e($m['nama']) ?>">
+                                <?= e($m['nama']) ?> <?= !empty($m['asnaf']) ? '('.e(ucfirst($m['asnaf'])).')' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <input type="hidden" name="pihak_id" id="tambahPihakId" value="">
+
+                <!-- Nama Donatur / Penerima -->
                 <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted" id="tambahLabelNama">Nama Penyumbang / Donatur</label>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label small fw-bold text-muted mb-0" id="tambahLabelNama">Nama Penyumbang / Donatur</label>
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 text-muted" id="btnHambaAllah">
+                            <i class="bi bi-magic me-1"></i>Isi "Hamba Allah"
+                        </button>
+                    </div>
                     <div class="input-group">
                         <span class="input-group-text bg-white"><i class="bi bi-person text-muted"></i></span>
-                        <input type="text" name="nama" class="form-control" placeholder="Contoh: Hamba Allah / Nama Donatur" maxlength="100" required>
+                        <input type="text" name="nama" id="tambahInputNama" class="form-control" placeholder="Contoh: Hamba Allah / Nama Donatur" maxlength="150" required>
                     </div>
                 </div>
+
+                <!-- Dropdown Kategori Dana -->
                 <div class="mb-3">
-                    <label class="form-label small fw-bold text-muted">Nominal (Rp)</label>
+                    <label class="form-label small fw-bold text-muted" id="tambahLabelKategori">Kategori Dana <span class="text-danger">*</span></label>
+                    <select name="kategori_id" id="tambahKategori" class="form-select" required>
+                        <!-- Diisi secara dinamis via JavaScript -->
+                    </select>
+                </div>
+
+                <!-- Nominal -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted">Nominal (Rp) <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-white fw-bold text-muted">Rp</span>
                         <input type="number" name="jumlah" class="form-control" min="1" step="1" placeholder="Contoh: 500000" required>
                     </div>
                 </div>
-                <div>
-                    <label class="form-label small fw-bold text-muted">Tanggal Transaksi</label>
+
+                <!-- Tanggal Transaksi -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted">Tanggal Transaksi <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-white"><i class="bi bi-calendar3 text-muted"></i></span>
                         <input type="date" name="tanggal" class="form-control" value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>" required>
                     </div>
+                </div>
+
+                <!-- Keterangan -->
+                <div class="mb-2">
+                    <label class="form-label small fw-bold text-muted">Keterangan / Catatan Tambahan</label>
+                    <textarea name="keterangan" class="form-control" rows="2" placeholder="Catatan transaksi bila ada..."></textarea>
                 </div>
             </div>
             <div class="modal-footer border-0 pt-0 px-4 pb-4">
@@ -429,64 +551,142 @@ require 'partials/header.php';
 </div>
 
 <!-- ============================================================
-     5. MODAL KONFIRMASI HAPUS TRANSAKSI
+     5. MODAL VOID (BATALKAN) TRANSAKSI
      ============================================================ -->
-<div class="modal fade" id="modalHapus" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
+<div class="modal fade" id="modalVoid" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <form method="POST" action="hapus.php" class="modal-content shadow-lg border-0" style="border-radius: 20px;">
             <?= csrf_field() ?>
-            <input type="hidden" name="tipe" id="hapusTipe">
-            <input type="hidden" name="id" id="hapusId">
-            <div class="modal-body text-center p-4">
-                <div class="stat-icon-box mx-auto mb-3" style="background: var(--danger-soft); color: var(--danger); width: 54px; height: 54px; font-size: 1.6rem;">
-                    <i class="bi bi-trash3"></i>
+            <input type="hidden" name="tipe" id="voidTipe">
+            <input type="hidden" name="id" id="voidId">
+            <div class="modal-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="stat-icon-box mx-0" style="background:#fee2e2;color:#b91c1c;width:48px;height:48px;font-size:1.4rem;flex-shrink:0;">
+                        <i class="bi bi-slash-circle"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-1">Batalkan Transaksi?</h5>
+                        <p class="text-muted small mb-0">Transaksi atas nama <strong id="voidNama" class="text-dark"></strong> akan di-void. Data tetap tersimpan dalam riwayat.</p>
+                    </div>
                 </div>
-                <h5 class="fw-bold mb-1">Hapus Transaksi?</h5>
-                <p class="text-muted small mb-0">Data transaksi atas nama <strong id="hapusNama" class="text-dark"></strong> akan dihapus dan saldo kas diperbarui.</p>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted" for="voidAlasan">Alasan Pembatalan <span class="text-danger">*</span></label>
+                    <textarea id="voidAlasan" name="alasan" class="form-control" rows="2" placeholder="Contoh: Data duplikat / Kesalahan input" required maxlength="255"></textarea>
+                </div>
+                <div class="alert alert-warning py-2 px-3 small border-0 mb-0" style="border-radius:10px;">
+                    <i class="bi bi-info-circle me-1"></i>Transaksi yang dibatalkan tidak dihitung ke saldo, namun tetap tampil dengan penanda void.
+                </div>
             </div>
-            <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
                 <button type="button" class="btn-petro-outline" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-danger rounded-3 fw-bold px-3">Ya, Hapus</button>
+                <button type="submit" class="btn btn-danger rounded-3 fw-bold px-4">Batalkan (Void)</button>
             </div>
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <?php require 'partials/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
+    var kategoriMasukData  = <?= json_encode($kategori_masuk) ?>;
+    var kategoriKeluarData = <?= json_encode($kategori_keluar) ?>;
+
     // Modal Tambah: Konfigurasi dinamis jenis Pemasukan / Pengeluaran
-    document.getElementById('modalTambah').addEventListener('show.bs.modal', function (ev) {
-        var tipe = (ev.relatedTarget && ev.relatedTarget.dataset.tipe) || 'masuk';
-        var masuk = (tipe === 'masuk');
-        document.getElementById('tambahTipe').value = tipe;
-        document.getElementById('tambahJudul').textContent = masuk ? 'Catat Pemasukan Kas' : 'Catat Penyaluran / Pengeluaran';
-        document.getElementById('tambahLabelNama').textContent = masuk ? 'Nama Penyumbang / Donatur' : 'Nama Penerima Manfaat';
-        
-        var iconBox = document.getElementById('tambahIconBox');
-        var icon = document.getElementById('tambahIcon');
-        var btn = document.getElementById('tambahSimpan');
+    var modalTambahEl = document.getElementById('modalTambah');
+    if (modalTambahEl) {
+        modalTambahEl.addEventListener('show.bs.modal', function (ev) {
+            var tipe = (ev.relatedTarget && ev.relatedTarget.dataset.tipe) || 'masuk';
+            var masuk = (tipe === 'masuk');
+            document.getElementById('tambahTipe').value = tipe;
+            document.getElementById('tambahJudul').textContent = masuk ? 'Catat Pemasukan Kas' : 'Catat Penyaluran / Pengeluaran';
+            document.getElementById('tambahLabelNama').textContent = masuk ? 'Nama Penyumbang / Donatur' : 'Nama Penerima Manfaat';
+            document.getElementById('tambahLabelKategori').textContent = masuk ? 'Kategori Pemasukan' : 'Program Penyaluran';
+            
+            var iconBox = document.getElementById('tambahIconBox');
+            var icon = document.getElementById('tambahIcon');
+            var btn = document.getElementById('tambahSimpan');
+            var groupMasuk  = document.getElementById('groupPihakMasuk');
+            var groupKeluar = document.getElementById('groupPihakKeluar');
+            var btnHamba    = document.getElementById('btnHambaAllah');
+            var katSelect   = document.getElementById('tambahKategori');
 
-        if (masuk) {
-            iconBox.style.background = 'var(--pg-green-soft)';
-            iconBox.style.color = 'var(--pg-green-dark)';
-            icon.className = 'bi bi-arrow-down-left';
-            btn.className = 'btn-petro-green px-4';
-        } else {
-            iconBox.style.background = 'var(--pg-yellow-soft)';
-            iconBox.style.color = 'var(--pg-yellow-dark)';
-            icon.className = 'bi bi-arrow-up-right';
-            btn.className = 'btn-petro-yellow px-4';
-        }
-    });
+            // Reset pihak
+            document.getElementById('tambahPihakId').value = '';
+            document.getElementById('selectMuzakki').value = '';
+            document.getElementById('selectMustahik').value = '';
+            document.getElementById('tambahInputNama').value = '';
 
-    // Modal Hapus: Isi data transaksi yang dipilih
-    document.getElementById('modalHapus').addEventListener('show.bs.modal', function (ev) {
-        var b = ev.relatedTarget;
-        document.getElementById('hapusTipe').value = b.dataset.tipe;
-        document.getElementById('hapusId').value = b.dataset.id;
-        document.getElementById('hapusNama').textContent = b.dataset.nama;
-    });
+            // Populate kategori sesuai tipe
+            katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+            var kList = masuk ? kategoriMasukData : kategoriKeluarData;
+            kList.forEach(function (k) {
+                var opt = document.createElement('option');
+                opt.value = k.id;
+                opt.textContent = k.nama;
+                katSelect.appendChild(opt);
+            });
+
+            if (masuk) {
+                iconBox.style.background = 'var(--pg-green-soft)';
+                iconBox.style.color = 'var(--pg-green-dark)';
+                icon.className = 'bi bi-arrow-down-left';
+                btn.className = 'btn-petro-green px-4';
+                groupMasuk.style.display = 'block';
+                groupKeluar.style.display = 'none';
+                btnHamba.style.display = 'inline-block';
+            } else {
+                iconBox.style.background = 'var(--pg-yellow-soft)';
+                iconBox.style.color = 'var(--pg-yellow-dark)';
+                icon.className = 'bi bi-arrow-up-right';
+                btn.className = 'btn-petro-yellow px-4';
+                groupMasuk.style.display = 'none';
+                groupKeluar.style.display = 'block';
+                btnHamba.style.display = 'none';
+            }
+        });
+
+        // Event listener saat memilih Muzakki
+        document.getElementById('selectMuzakki').addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            if (opt && opt.dataset.nama) {
+                document.getElementById('tambahInputNama').value = opt.dataset.nama;
+                document.getElementById('tambahPihakId').value = opt.value;
+            } else {
+                document.getElementById('tambahPihakId').value = '';
+            }
+        });
+
+        // Event listener saat memilih Mustahik
+        document.getElementById('selectMustahik').addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            if (opt && opt.dataset.nama) {
+                document.getElementById('tambahInputNama').value = opt.dataset.nama;
+                document.getElementById('tambahPihakId').value = opt.value;
+            } else {
+                document.getElementById('tambahPihakId').value = '';
+            }
+        });
+
+        // Tombol cepat Isi Hamba Allah
+        document.getElementById('btnHambaAllah').addEventListener('click', function () {
+            document.getElementById('tambahInputNama').value = 'Hamba Allah';
+            document.getElementById('tambahPihakId').value = '';
+            document.getElementById('selectMuzakki').value = '';
+        });
+    }
+
+    // Modal Void: Isi data transaksi yang dipilih
+    var modalVoidEl = document.getElementById('modalVoid');
+    if (modalVoidEl) {
+        modalVoidEl.addEventListener('show.bs.modal', function (ev) {
+            var b = ev.relatedTarget;
+            document.getElementById('voidTipe').value = b.dataset.tipe;
+            document.getElementById('voidId').value = b.dataset.id;
+            document.getElementById('voidNama').textContent = b.dataset.nama;
+            document.getElementById('voidAlasan').value = '';
+        });
+    }
 
     // Chart.js Arus Kas 6 Bulan (Clean & Modern)
     function ringkasAngka(v) {

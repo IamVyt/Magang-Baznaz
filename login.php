@@ -7,12 +7,12 @@ if (($_SESSION['status'] ?? '') === 'login') {
 
 $pesan = '';
 $flash = ambil_flash();
-$maks_gagal = 5;
-$detik_kunci = 60;
+$maks_gagal   = 5;
+$detik_kunci  = 60;
 
 $terkunci = time() < ($_SESSION['kunci_sampai'] ?? 0);
 if ($terkunci) {
-    $sisa = $_SESSION['kunci_sampai'] - time();
+    $sisa  = $_SESSION['kunci_sampai'] - time();
     $pesan = "Terlalu banyak percobaan. Coba lagi dalam {$sisa} detik.";
 }
 
@@ -24,7 +24,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['login']) && !
         $password = (string)($_POST['password'] ?? '');
 
         $user = q_one($conn,
-            "SELECT id, nama_lengkap, username, password FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1",
+            "SELECT id, nama_lengkap, username, password, role, ganti_password
+               FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1",
             's', [$username]);
 
         $ok = false;
@@ -41,17 +42,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['login']) && !
 
         if ($ok) {
             session_regenerate_id(true);
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['nama']     = $user['nama_lengkap'] ?: $user['username'];
-            $_SESSION['status']   = 'login';
+            $_SESSION['user_id']        = (int)$user['id'];
+            $_SESSION['username']       = $user['username'];
+            $_SESSION['nama']           = $user['nama_lengkap'] ?: $user['username'];
+            $_SESSION['status']         = 'login';
+            $_SESSION['role']           = $user['role'] ?: 'admin';
+            $_SESSION['ganti_password'] = (int)$user['ganti_password'];
             unset($_SESSION['gagal_login'], $_SESSION['kunci_sampai']);
+
+            catat_audit($conn, 'login', 'users', (int)$user['id']);
+
+            // Paksa ganti password jika flag aktif
+            if ((int)$user['ganti_password'] === 1) {
+                redirect('ganti_password.php');
+            }
             redirect('index.php');
         }
 
         $_SESSION['gagal_login'] = ($_SESSION['gagal_login'] ?? 0) + 1;
         if ($_SESSION['gagal_login'] >= $maks_gagal) {
             $_SESSION['kunci_sampai'] = time() + $detik_kunci;
-            $_SESSION['gagal_login'] = 0;
+            $_SESSION['gagal_login']  = 0;
         }
         $pesan = 'Username atau password yang Anda masukkan salah.';
     }
@@ -74,7 +85,7 @@ $css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
 <body>
 
 <div class="auth-fullscreen">
-    <!-- NAVIGASI ATAS (HANYA BRAND & SIGN IN / REGISTER) -->
+    <!-- NAVIGASI ATAS -->
     <header class="auth-nav-container">
         <div class="d-flex align-items-center gap-2">
             <div class="brand-icon-sq" style="width: 40px; height: 40px; font-size: 0.9rem;">UPZ</div>
@@ -83,17 +94,15 @@ $css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
                 <div class="text-muted" style="font-size: 0.72rem;">BAZNAS Petrokimia Gresik</div>
             </div>
         </div>
-
         <div class="auth-nav-actions">
-            <a href="login.php" class="auth-nav-link active">Sign In</a>
-            <a href="register.php" class="auth-btn-pill">Register</a>
+            <a href="login.php" class="auth-nav-link active">Masuk Petugas</a>
         </div>
     </header>
 
     <!-- WRAPPER UTAMA DUA KOLOM -->
     <main class="auth-main-wrapper">
         <div class="auth-grid-split">
-            <!-- Kolom Kiri: Teks Sambutan & Maskot BAZNAS Alami (Center Sejajar Teks) -->
+            <!-- Kolom Kiri -->
             <div class="auth-hero-col">
                 <h1 class="auth-hero-title">
                     Selamat Datang di
@@ -102,14 +111,12 @@ $css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
                 <p class="auth-hero-sub">
                     Unit Pengumpul Zakat PT Petrokimia Gresik. Layanan pencatatan dan pengelolaan dana zakat, infak, dan sedekah yang transparan dan amanah.
                 </p>
-
-                <!-- Maskot BAZNAS Sejajar Center dengan Teks di Atas -->
                 <div class="auth-mascot-box">
                     <img src="assets/img/baznas_mascot.jpg" alt="Maskot UPZ BAZNAS" class="auth-mascot-img">
                 </div>
             </div>
 
-            <!-- Kolom Kanan: Formulir Masuk (Sign In) -->
+            <!-- Kolom Kanan: Formulir Masuk -->
             <div>
                 <div class="auth-form-card">
                     <div class="mb-4">
@@ -145,7 +152,6 @@ $css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
                             </button>
                         </div>
 
-                        <!-- Checkbox & Bantuan Password -->
                         <div class="d-flex align-items-center justify-content-between mb-4 small">
                             <label class="d-flex align-items-center gap-2 text-dark user-select-none" style="cursor: pointer;">
                                 <input type="checkbox" name="ingat" class="form-check-input mt-0" style="width: 17px; height: 17px; border-radius: 5px;">
@@ -157,7 +163,6 @@ $css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
                             </a>
                         </div>
 
-                        <!-- Tombol Sign In Biru Petrokimia -->
                         <button type="submit" name="login" class="auth-btn-action">
                             SIGN IN
                         </button>
@@ -167,7 +172,6 @@ $css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
         </div>
     </main>
 
-    <!-- FOOTER RESMI DI BAGIAN BAWAH LAYAR PENUH -->
     <footer class="auth-footer-bar">
         <div>&copy; <?= date('Y') ?> UPZ BAZNAS PT Petrokimia Gresik &bull; SIM Keuangan</div>
         <div>Amanah &bull; Transparan &bull; Akuntabel</div>
@@ -175,10 +179,9 @@ $css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
 </div>
 
 <script>
-    // Toggle sembunyikan / tampilkan password
     document.getElementById('btnTogglePassword').addEventListener('click', function () {
         var input = document.getElementById('inputPassword');
-        var icon = this.querySelector('i');
+        var icon  = this.querySelector('i');
         var isPass = (input.type === 'password');
         input.type = isPass ? 'text' : 'password';
         icon.className = isPass ? 'bi bi-eye-slash' : 'bi bi-eye';

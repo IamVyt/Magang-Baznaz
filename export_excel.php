@@ -1,6 +1,7 @@
 <?php
 require 'fungsi.php';
 wajib_login();
+wajib_role(['admin', 'bendahara', 'ketua']);
 
 // Ambil filter sesuai pencarian aktif
 $f = filter_transaksi(true);
@@ -82,8 +83,10 @@ $totalKeluar = 0;
         <tr>
             <th style="width: 40px;">No</th>
             <th style="width: 100px;">Tanggal</th>
-            <th style="width: 110px;">Jenis</th>
+            <th style="width: 100px;">Jenis</th>
+            <th style="width: 140px;">Kategori Dana</th>
             <th>Nama Donatur / Penerima Manfaat</th>
+            <th>Keterangan</th>
             <th style="width: 140px;">Pemasukan (Rp)</th>
             <th style="width: 140px;">Pengeluaran (Rp)</th>
         </tr>
@@ -91,7 +94,7 @@ $totalKeluar = 0;
     <tbody>
     <?php if (!$daftar): ?>
         <tr>
-            <td colspan="6" class="text-center" style="padding: 20px; color: #777;">
+            <td colspan="8" class="text-center" style="padding: 20px; color: #777;">
                 Tidak ada data transaksi yang sesuai dengan kriteria filter.
             </td>
         </tr>
@@ -113,7 +116,9 @@ $totalKeluar = 0;
             <td class="text-center" style="font-weight: bold; color: <?= $isMasuk ? '#1E9B52' : '#B7791F' ?>;">
                 <?= $isMasuk ? 'Pemasukan' : 'Pengeluaran' ?>
             </td>
+            <td><?= e($d['kategori_nama'] ?? '-') ?></td>
             <td><?= e($d['nama']) ?></td>
+            <td><?= e($d['keterangan'] ?? '-') ?></td>
             <td class="text-end text-success">
                 <?= $isMasuk ? number_format($jml, 0, ',', '.') : '-' ?>
             </td>
@@ -126,18 +131,18 @@ $totalKeluar = 0;
     </tbody>
     <tfoot>
         <tr class="bg-summary">
-            <td colspan="4" class="text-end">TOTAL PERIODE INI:</td>
+            <td colspan="6" class="text-end">TOTAL PERIODE INI:</td>
             <td class="text-end text-success">Rp <?= number_format($totalMasuk, 0, ',', '.') ?></td>
             <td class="text-end text-danger">Rp <?= number_format($totalKeluar, 0, ',', '.') ?></td>
         </tr>
         <tr class="bg-total">
-            <td colspan="4" class="text-end">SURPLUS / (DEFISIT) PERIODE INI:</td>
+            <td colspan="6" class="text-end">SURPLUS / (DEFISIT) PERIODE INI:</td>
             <td colspan="2" class="text-end" style="color: <?= ($totalMasuk - $totalKeluar >= 0) ? '#1E9B52' : '#D64545' ?>;">
                 Rp <?= number_format($totalMasuk - $totalKeluar, 0, ',', '.') ?>
             </td>
         </tr>
         <tr class="bg-total">
-            <td colspan="4" class="text-end">SALDO KAS SAAT INI (KESELURUHAN):</td>
+            <td colspan="6" class="text-end">SALDO KAS SAAT INI (KESELURUHAN):</td>
             <td colspan="2" class="text-end" style="color: #0B4A8F;">
                 Rp <?= number_format(hitung_saldo($conn), 0, ',', '.') ?>
             </td>
