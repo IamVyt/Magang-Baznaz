@@ -1,9 +1,10 @@
-﻿<?php
-require 'fungsi.php';
-wajib_login();
-catat_audit($conn, 'logout', 'users', $_SESSION['user_id'] ?? null);
-session_unset();
-session_destroy();
+<?php
 session_start();
-flash('success', 'Anda telah berhasil keluar dari sistem.');
-redirect('login.php');
+$_SESSION = [];
+if (ini_get('session.use_cookies')) {
+    $p = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+}
+session_destroy();
+header('Location: index.php');
+exit();

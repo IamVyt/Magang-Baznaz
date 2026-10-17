@@ -1,32 +1,26 @@
 <?php
-require 'fungsi.php';
+require __DIR__ . '/php/fungsi.php';
 
-if (($_SESSION['status'] ?? '') === 'login') {
-    redirect('index.php');
-}
+// Sudah login: kembali ke halaman yang tadi dituju (mis. form donasi), atau petugas ke dashboard dan user biasa ke beranda
+function tujuan_setelah_login() { return ambil_tujuan() ?? (is_staff() ? 'dashboard.php' : 'index.php'); }
+if (($_SESSION['status'] ?? '') === 'login') redirect(tujuan_setelah_login());
 
 $pesan = '';
-$flash = ambil_flash();
-$maks_gagal   = 5;
-$detik_kunci  = 60;
+$maks_gagal = 5;
+$detik_kunci = 60;
 
 $terkunci = time() < ($_SESSION['kunci_sampai'] ?? 0);
 if ($terkunci) {
-    $sisa  = $_SESSION['kunci_sampai'] - time();
-    $pesan = "Terlalu banyak percobaan. Coba lagi dalam {$sisa} detik.";
+    $pesan = 'Terlalu banyak percobaan. Coba lagi dalam ' . ($_SESSION['kunci_sampai'] - time()) . ' detik.';
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['login']) && !$terkunci) {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !$terkunci) {
     if (!csrf_valid()) {
         $pesan = 'Sesi formulir kedaluwarsa. Silakan ulangi.';
     } else {
         $username = trim($_POST['username'] ?? '');
         $password = (string)($_POST['password'] ?? '');
-
-        $user = q_one($conn,
-            "SELECT id, nama_lengkap, username, password, role, ganti_password
-               FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1",
-            's', [$username]);
+        $user = q_one($conn, "SELECT id, nama_lengkap, username, password, role FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1", 's', [$username]);
 
         $ok = false;
         if ($user) {
@@ -34,158 +28,59 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['login']) && !
             if (preg_match('/^\$2[ayb]\$|^\$argon2/', $hash)) {
                 $ok = password_verify($password, $hash);
             } elseif ($hash !== '' && hash_equals($hash, $password)) {
+                // Password lama yang belum di-hash: langsung diamankan
                 $ok = true;
-                q($conn, "UPDATE users SET password = ? WHERE id = ?", 'si',
-                    [password_hash($password, PASSWORD_DEFAULT), $user['id']]);
+                q($conn, "UPDATE users SET password = ? WHERE id = ?", 'si', [password_hash($password, PASSWORD_DEFAULT), $user['id']]);
             }
         }
 
         if ($ok) {
             session_regenerate_id(true);
-            $_SESSION['user_id']        = (int)$user['id'];
-            $_SESSION['username']       = $user['username'];
-            $_SESSION['nama']           = $user['nama_lengkap'] ?: $user['username'];
-            $_SESSION['status']         = 'login';
-            $_SESSION['role']           = $user['role'] ?: 'admin';
-            $_SESSION['ganti_password'] = (int)$user['ganti_password'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['nama']     = $user['nama_lengkap'] ?: $user['username'];
+            $_SESSION['status']   = 'login';
+            $_SESSION['user_id']  = (int)$user['id'];
+            $_SESSION['role']     = $user['role'] ?: 'user';
+            catat_audit($conn, 'login');
             unset($_SESSION['gagal_login'], $_SESSION['kunci_sampai']);
-
-            catat_audit($conn, 'login', 'users', (int)$user['id']);
-
-            // Paksa ganti password jika flag aktif
-            if ((int)$user['ganti_password'] === 1) {
-                redirect('ganti_password.php');
-            }
-            redirect('index.php');
+            redirect(tujuan_setelah_login());
         }
 
         $_SESSION['gagal_login'] = ($_SESSION['gagal_login'] ?? 0) + 1;
         if ($_SESSION['gagal_login'] >= $maks_gagal) {
             $_SESSION['kunci_sampai'] = time() + $detik_kunci;
-            $_SESSION['gagal_login']  = 0;
+            $_SESSION['gagal_login'] = 0;
         }
         $pesan = 'Username atau password yang Anda masukkan salah.';
     }
 }
-$css_ver = @filemtime(__DIR__ . '/assets/style.css') ?: time();
+
+$title = 'Login';
+include __DIR__ . '/php/app_header.php';
 ?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign In | UPZ BAZNAS Petrokimia Gresik</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="assets/style.css?v=<?= $css_ver ?>" rel="stylesheet">
-</head>
-<body>
 
-<div class="auth-fullscreen">
-    <!-- NAVIGASI ATAS -->
-    <header class="auth-nav-container">
-        <div class="d-flex align-items-center gap-2">
-            <div class="brand-icon-sq" style="width: 40px; height: 40px; font-size: 0.9rem;">UPZ</div>
-            <div>
-                <div class="fw-bold text-dark" style="font-size: 1.05rem; line-height: 1.1; font-weight: 800;">SIM Keuangan</div>
-                <div class="text-muted" style="font-size: 0.72rem;">BAZNAS Petrokimia Gresik</div>
-            </div>
-        </div>
-        <div class="auth-nav-actions">
-            <a href="login.php" class="auth-nav-link active">Masuk Petugas</a>
-        </div>
-    </header>
+<section class="auth">
+ <div class="c g">
+  <h1>Selamat datang di UPZ BAZNAS</h1>
+  <p>Layanan pencatatan dan pengelolaan dana zakat, infak, dan sedekah Petrokimia Gresik yang transparan dan amanah.</p>
+  <img class="mas" src="img/maskot.svg" alt="Maskot UPZ BAZNAS: koin ramah yang membawa hati" width="340" height="342" decoding="async">
+ </div>
 
-    <!-- WRAPPER UTAMA DUA KOLOM -->
-    <main class="auth-main-wrapper">
-        <div class="auth-grid-split">
-            <!-- Kolom Kiri -->
-            <div class="auth-hero-col">
-                <h1 class="auth-hero-title">
-                    Selamat Datang di
-                    <span>UPZ BAZNAS</span>
-                </h1>
-                <p class="auth-hero-sub">
-                    Unit Pengumpul Zakat PT Petrokimia Gresik. Layanan pencatatan dan pengelolaan dana zakat, infak, dan sedekah yang transparan dan amanah.
-                </p>
-                <div class="auth-mascot-box">
-                    <img src="assets/img/baznas_mascot.jpg" alt="Maskot UPZ BAZNAS" class="auth-mascot-img">
-                </div>
-            </div>
+ <form class="c l form" method="post" autocomplete="off">
+  <h2><span class="tg">Masuk</span></h2>
+  <p>Masukkan username dan kata sandi Anda.</p>
+  <?php if ($pesan !== ''): ?><div class="alert danger" role="alert"><?= e($pesan) ?></div><?php endif; ?>
+  <?= csrf_field() ?>
+  <label for="username">Username</label>
+  <input id="username" type="text" name="username" required autofocus>
+  <label for="password">Password</label>
+  <div class="pw">
+   <input id="password" type="password" name="password" required>
+   <button type="button" data-pw="password" aria-label="Tampilkan password"><svg><use href="#eye"/></svg></button>
+  </div>
+  <button class="btn" type="submit">Login</button>
+  <small>Belum punya akun? <a class="ul" href="register.php">Daftar sekarang</a></small>
+ </form>
+</section>
 
-            <!-- Kolom Kanan: Formulir Masuk -->
-            <div>
-                <div class="auth-form-card">
-                    <div class="mb-4">
-                        <h2 class="h4 fw-bold text-dark mb-1">Masuk ke Akun Anda</h2>
-                        <p class="text-muted small mb-0">Masukkan username dan kata sandi petugas</p>
-                    </div>
-
-                    <?php if ($flash): ?>
-                        <div class="alert alert-<?= e($flash['tipe']) ?> py-2 px-3 small border-0 shadow-sm mb-3" style="border-radius: 14px;" role="alert">
-                            <i class="bi bi-check-circle-fill me-1"></i><?= e($flash['pesan']) ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <?php if ($pesan !== ''): ?>
-                        <div class="alert alert-danger py-2 px-3 small border-0 shadow-sm mb-3" style="border-radius: 14px;" role="alert">
-                            <i class="bi bi-exclamation-circle-fill me-1"></i><?= e($pesan) ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="POST" autocomplete="off">
-                        <?= csrf_field() ?>
-
-                        <div class="auth-input-group">
-                            <input type="text" name="username" class="form-control auth-input-pill"
-                                   placeholder="Username" required autofocus>
-                        </div>
-
-                        <div class="auth-input-group">
-                            <input type="password" id="inputPassword" name="password" class="form-control auth-input-pill"
-                                   placeholder="Password" required>
-                            <button type="button" class="auth-input-toggle" id="btnTogglePassword" aria-label="Lihat password">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-
-                        <div class="d-flex align-items-center justify-content-between mb-4 small">
-                            <label class="d-flex align-items-center gap-2 text-dark user-select-none" style="cursor: pointer;">
-                                <input type="checkbox" name="ingat" class="form-check-input mt-0" style="width: 17px; height: 17px; border-radius: 5px;">
-                                <span class="fw-semibold text-secondary">Keep me login</span>
-                            </label>
-                            <a href="javascript:void(0)" onclick="alert('Untuk keamanan akun petugas, silakan hubungi Administrator UPZ Petrokimia untuk pemulihan akses.');"
-                               class="text-decoration-none text-muted fw-semibold">
-                                Recovery Password
-                            </a>
-                        </div>
-
-                        <button type="submit" name="login" class="auth-btn-action">
-                            SIGN IN
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <footer class="auth-footer-bar">
-        <div>&copy; <?= date('Y') ?> UPZ BAZNAS PT Petrokimia Gresik &bull; SIM Keuangan</div>
-        <div>Amanah &bull; Transparan &bull; Akuntabel</div>
-    </footer>
-</div>
-
-<script>
-    document.getElementById('btnTogglePassword').addEventListener('click', function () {
-        var input = document.getElementById('inputPassword');
-        var icon  = this.querySelector('i');
-        var isPass = (input.type === 'password');
-        input.type = isPass ? 'text' : 'password';
-        icon.className = isPass ? 'bi bi-eye-slash' : 'bi bi-eye';
-    });
-</script>
-</body>
-</html>
+<?php include __DIR__ . '/php/app_footer.php'; ?>

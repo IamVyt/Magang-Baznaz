@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 342" width="340" height="342" role="img" aria-labelledby="judul">
+<title id="judul">Maskot UPZ BAZNAS: koin ramah yang membawa hati</title>
+<defs>
+<radialGradient id="koin" cx=".5" cy=".42" r=".62">
+<stop offset="0" stop-color="#FFFFFF"/>
+<stop offset=".55" stop-color="#F5F9EF"/>
+<stop offset="1" stop-color="#D5E2C3"/>
+</radialGradient>
+<linearGradient id="daun" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#E3FFB8"/>
+<stop offset="1" stop-color="#7ED321"/>
+</linearGradient>
+<radialGradient id="hati" cx=".35" cy=".3" r=".8">
+<stop offset="0" stop-color="#FF9CA8"/>
+<stop offset="1" stop-color="#F43F5E"/>
+</radialGradient>
+</defs>
+<style>
+.kilau,.mata,.hati{transform-box:fill-box;transform-origin:center}
+.kilau{animation:kilau 2.8s ease-in-out infinite}
+.mata{animation:kedip 5s ease-in-out infinite}
+.hati{animation:detak 1.9s ease-in-out infinite}
+.tunas{transform-box:view-box;transform-origin:170px 76px;animation:goyang 3.6s ease-in-out infinite}
+@keyframes kilau{0%,100%{transform:scale(.7);opacity:.6}50%{transform:scale(1.15);opacity:1}}
+@keyframes kedip{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
+@keyframes detak{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes goyang{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(5deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<!-- bayangan lantai -->
+<ellipse cx="170" cy="327" rx="100" ry="10" fill="#191A23" opacity=".16"/>
+
+<!-- kaki -->
+<g stroke="#191A23" stroke-width="7" stroke-linecap="round" fill="none"><path d="M142 282V308"/><path d="M198 282V308"/></g>
+<ellipse cx="134" cy="316" rx="25" ry="11" fill="#191A23"/>
+<ellipse cx="206" cy="316" rx="25" ry="11" fill="#191A23"/>
+
+<!-- badan koin -->
+<circle cx="179" cy="191" r="108" fill="#191A23"/>
+<circle cx="170" cy="180" r="108" fill="url(#koin)" stroke="#191A23" stroke-width="5"/>
+<circle cx="170" cy="180" r="90" fill="none" stroke="#191A23" stroke-opacity=".35" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="0.1 11"/>
+<path d="M89 123A99 99 0 0 1 128 90" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".95"/>
+
+<!-- wajah -->
+<path d="M116 152Q132 142 148 152M192 152Q208 142 224 152" fill="none" stroke="#191A23" stroke-width="4.5" stroke-linecap="round"/>
+<g class="mata"><ellipse cx="132" cy="178" rx="11" ry="14" fill="#191A23"/><circle cx="136" cy="172" r="4" fill="#fff"/></g>
+<g class="mata"><ellipse cx="208" cy="178" rx="11" ry="14" fill="#191A23"/><circle cx="212" cy="172" r="4" fill="#fff"/></g>
+<ellipse cx="104" cy="208" rx="15" ry="9" fill="#FF9DAA" opacity=".75"/>
+<ellipse cx="236" cy="208" rx="15" ry="9" fill="#FF9DAA" opacity=".75"/>
+<path d="M148 206Q170 246 192 206Z" fill="#191A23" stroke="#191A23" stroke-width="4" stroke-linejoin="round"/>
+<path d="M157 219Q170 209 183 219Q170 229 157 219Z" fill="#FF7B8C"/>
+
+<!-- tunas (tanda tumbuh dan amanah) -->
+<g class="tunas">
+<path d="M170 76C170 62 168 52 170 38" fill="none" stroke="#191A23" stroke-width="5" stroke-linecap="round"/>
+<path d="M170 48C150 50 132 40 128 22C150 20 168 30 170 48Z" fill="url(#daun)" stroke="#191A23" stroke-width="4" stroke-linejoin="round"/>
+<path d="M170 44C188 44 206 32 212 14C190 12 172 24 170 44Z" fill="url(#daun)" stroke="#191A23" stroke-width="4" stroke-linejoin="round"/>
+</g>
+
+<!-- tangan memegang hati -->
+<g fill="none" stroke="#191A23" stroke-width="7" stroke-linecap="round"><path d="M84 226Q88 262 126 264"/><path d="M256 226Q252 262 214 264"/></g>
+<g class="hati">
+<path d="M170 294C138 274 128 254 138 241C148 229 165 234 170 247C175 234 192 229 202 241C212 254 202 274 170 294Z" fill="url(#hati)" stroke="#191A23" stroke-width="4.5" stroke-linejoin="round"/>
+<path d="M146 247Q149 241 156 241" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".9"/>
+</g>
+<circle cx="126" cy="264" r="13" fill="#fff" stroke="#191A23" stroke-width="4.5"/>
+<circle cx="214" cy="264" r="13" fill="#fff" stroke="#191A23" stroke-width="4.5"/>
+
+<!-- hiasan: kilau dan koin kecil -->
+<g transform="translate(24 84)"><path class="kilau" fill="#191A23" d="M12 0C12 7 17 12 24 12C17 12 12 17 12 24C12 17 7 12 0 12C7 12 12 7 12 0Z"/></g>
+<g transform="translate(290 40) scale(1.3)"><path class="kilau" style="animation-delay:.9s" fill="#191A23" d="M12 0C12 7 17 12 24 12C17 12 12 17 12 24C12 17 7 12 0 12C7 12 12 7 12 0Z"/></g>
+<g transform="translate(300 122) scale(.7)"><path class="kilau" style="animation-delay:1.6s" fill="#fff" stroke="#191A23" stroke-width="2.5" d="M12 0C12 7 17 12 24 12C17 12 12 17 12 24C12 17 7 12 0 12C7 12 12 7 12 0Z"/></g>
+<g stroke="#191A23" stroke-width="3.5" fill="#fff"><circle cx="38" cy="262" r="12"/><circle cx="310" cy="300" r="9"/></g>
+<circle cx="38" cy="262" r="5" fill="none" stroke="#191A23" stroke-width="2"/>
+<circle cx="310" cy="300" r="3.5" fill="none" stroke="#191A23" stroke-width="2"/>
+</svg>

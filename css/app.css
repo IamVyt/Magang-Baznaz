@@ -1,0 +1,265 @@
+/* ===== Halaman sistem (login dan dashboard) =====
+   Dipakai bersama css/style.css. Isinya hanya komponen tambahan. */
+.sheet{min-height:100vh}
+.sheet nav ul .who{font-size:.9rem;opacity:.75}
+section.top,section.auth,section.cols{margin-top:clamp(2rem,4vw,3rem)}
+
+/* Pesan */
+.alert{margin-top:1.4rem;padding:.9rem 1.3rem;border:1px solid var(--dk);border-radius:1rem;box-shadow:0 .2rem 0 var(--dk);font-size:.95rem}
+.alert.success{background:var(--green)}
+.alert.danger{background:#ffd9d9}
+.alert.info{background:var(--gray)}
+
+/* Formulir */
+label{display:block;font-size:.9rem;margin:0 0 .3rem}
+input[type=text],input[type=password],input[type=number],input[type=date],input[type=email],input[type=tel],select,textarea{width:100%;font:inherit;padding:.8rem 1.1rem;border:1px solid var(--dk);border-radius:.8rem;background:#fff;color:var(--dk);margin-bottom:1.1rem}
+textarea{resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 3px var(--green)}
+label .lnk{float:right;font-size:.82rem;padding:0}
+.pw{position:relative;margin-bottom:1.1rem}
+.pw input{padding-right:3.2rem;margin-bottom:0}
+.pw button{position:absolute;right:.4rem;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:2.4rem;height:2.4rem;background:none;border:0;border-radius:.6rem;cursor:pointer;color:var(--dk);padding:0;transition:background-color .2s}
+.pw button:hover{background:var(--gray)}
+.pw button svg{position:static;width:1.3rem;height:1.3rem}
+
+/* Deretan mitra di bawah halaman login dan register */
+.mitra{margin-top:clamp(3rem,6vw,4.5rem);padding:1.8rem 0 2.4rem;border-top:1px solid var(--dk);text-align:center}
+.mitra small{font-size:.85rem;opacity:.65;letter-spacing:.04em;text-transform:uppercase}
+.mitra .logos{display:flex;flex-wrap:wrap;justify-content:center;gap:.8rem .9rem;margin-top:1.1rem;font-size:.95rem;font-weight:500;opacity:1}
+.mitra .logos span{display:inline-flex;align-items:center;gap:.55rem;padding:.55rem 1.15rem;border:1px solid var(--dk);border-radius:2rem;background:#fff;box-shadow:0 .15rem 0 var(--dk);text-align:center;transition:transform .2s,background-color .2s,box-shadow .2s}
+.mitra .logos span::before{content:"";flex:none;width:.8rem;height:.8rem;background:var(--dk);clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%)}
+.mitra .logos span:hover{background:var(--green);transform:translateY(-.15rem);box-shadow:0 .3rem 0 var(--dk)}
+.mitra p{margin-top:1.4rem;font-size:.85rem;opacity:.65}
+.ul{text-decoration:underline}
+.pwform{max-width:30rem}
+.fbox.audit{grid-template-columns:2fr 1.4fr auto}
+
+/* Login */
+.auth{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(1.2rem,2.2vw,2.2rem);align-items:stretch}
+.auth .c{justify-content:flex-start;gap:1rem}
+.auth .c.g{min-height:22rem}
+.auth h1{font-size:clamp(1.9rem,3vw,2.8rem);max-width:15ch}
+.auth .c p{max-width:24rem}
+.auth .c.g{position:relative;overflow:hidden;min-height:26rem}
+.auth .c.g h1,.auth .c.g p{position:relative;z-index:1;max-width:58%}
+.mas{position:absolute;right:clamp(.6rem,3vw,2.2rem);bottom:.9rem;width:min(14.5rem,46%);height:auto;pointer-events:none;animation:melayang 4.5s ease-in-out infinite}
+@keyframes melayang{50%{transform:translateY(-.6rem)}}
+@media(max-width:1100px){
+.auth .c.g h1,.auth .c.g p{max-width:100%}
+.mas{position:static;display:block;align-self:center;margin:auto 0 -.6rem;width:min(13rem,62%)}
+}
+.auth .form h2{font-weight:500;font-size:1.5rem}
+.auth .form .btn{width:100%;margin-top:.4rem}
+.auth small{font-size:.85rem;opacity:.8}
+
+/* Dashboard */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(1rem,1.7vw,1.7rem)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(1rem,1.7vw,1.7rem)}
+.stat{min-height:0!important;gap:.5rem!important;justify-content:flex-start!important}
+.stat small{font-size:.85rem}
+.stat b{font-size:clamp(1.25rem,1.9vw,1.7rem);line-height:1.2;font-weight:500}
+.bar{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center;margin:2rem 0 1.3rem}
+.pills,.acts{display:flex;flex-wrap:wrap;gap:.6rem}
+.acts.end{justify-content:flex-end}
+.pill{border:1px solid var(--dk);border-radius:2rem;padding:.5rem 1.1rem;font-size:.95rem;transition:background-color .2s,box-shadow .2s}
+.pill:hover{background:var(--gray)}
+.pill.on{background:var(--green);box-shadow:0 .15rem 0 var(--dk)}
+.btn.sm{padding:.65rem 1.15rem;font-size:.95rem}
+.card{border:1px solid var(--dk);border-radius:var(--r);box-shadow:0 .22rem 0 var(--dk);background:var(--bg);padding:var(--pad)}
+.fbox{display:grid;grid-template-columns:1.6fr 1.4fr 1fr 1fr auto;gap:1rem;align-items:end;margin-bottom:1.3rem}
+.fbox[hidden]{display:none}
+.fbox input,.fbox select{margin-bottom:0}
+.cols{display:grid;grid-template-columns:2fr 1fr;gap:clamp(1.2rem,2vw,2rem);align-items:start}
+.side{display:grid;gap:clamp(1.2rem,2vw,2rem)}
+.sub{font-size:1.25rem;font-weight:500;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:.3rem 1rem;margin-bottom:1.1rem}
+.sub small{font-size:.85rem;font-weight:400;opacity:.7}
+.chart{position:relative;height:15rem}
+.card.info{gap:.9rem;display:grid;color:#fff;font-size:.95rem}
+.card.info .tg{justify-self:start}
+
+/* Tabel */
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .6rem;margin-top:.2rem}
+.cat{font-style:normal;font-size:.75rem;padding:.05rem .55rem;border:1px solid var(--dk);border-radius:.5rem;background:var(--gray);white-space:nowrap}
+.meta small{display:block;max-width:13rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl tr.void{opacity:.5}
+.tbl tr.void b{text-decoration:line-through}
+.badge.void{background:#ffd9d9;color:#8a1c14}
+.badge.wait{background:#fff1b8}
+.scroll{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:.95rem}
+.tbl th{text-align:left;font-weight:500;border-bottom:1px solid var(--dk);padding:.6rem .5rem;white-space:nowrap}
+.tbl td{padding:.75rem .5rem;border-bottom:1px solid #e6e6e6;vertical-align:middle}
+.tbl small{display:block;opacity:.6;font-size:.78rem}
+.tbl .r{text-align:right}
+.nw{white-space:nowrap}
+.badge{display:inline-block;padding:.15rem .7rem;border:1px solid var(--dk);border-radius:2rem;font-size:.82rem;white-space:nowrap}
+.badge.in{background:var(--green);color:var(--dk)}
+.badge.out{background:var(--dk);color:#fff}
+.lnk{background:none;border:0;font:inherit;font-size:.9rem;text-decoration:underline;cursor:pointer;color:inherit;padding:.2rem .4rem}
+.lnk.del{color:#b3261e}
+.empty{text-align:center;padding:2.2rem 1rem;display:grid;gap:.5rem;justify-items:center}
+.pg{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.8rem;margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--dk)}
+.pg div{display:flex;gap:.4rem}
+.pg a{min-width:2.2rem;height:2.2rem;display:grid;place-items:center;border:1px solid var(--dk);border-radius:50%;font-size:.9rem;transition:background-color .2s}
+.pg a:hover{background:var(--gray)}
+.pg a.on{background:var(--green)}
+
+/* Isi jendela formulir */
+.dbox label{margin-top:.2rem}
+.dbox form,.dbox{font-size:.95rem}
+.dbox .acts{margin-top:.6rem}
+
+/* Sidebar petugas */
+.shell{display:grid;grid-template-columns:16rem 1fr;min-height:100vh}
+.sidenav{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:1.1rem;padding:1.6rem 1.1rem;border-right:1px solid var(--dk);background:#fff;overflow-y:auto}
+.rolechip{align-self:flex-start;background:var(--green);color:var(--dk);border-radius:.4rem;padding:0 .55rem;font-size:.8rem;font-weight:500;text-transform:capitalize}
+.menu{display:grid;gap:.35rem}
+.item{display:flex;align-items:center;gap:.75rem;padding:.65rem .85rem;border:1px solid transparent;border-radius:.9rem;font-size:.95rem;transition:background-color .2s,box-shadow .2s,transform .2s}
+.item:hover{background:var(--gray);transform:translateX(.15rem)}
+.item.on{background:var(--green);border-color:var(--dk);box-shadow:0 .18rem 0 var(--dk)}
+.ico{width:1.25rem;height:1.25rem;flex:none}
+.me{margin-top:auto;display:grid;gap:.3rem;padding-top:1rem;border-top:1px solid var(--dk)}
+.me b{font-weight:500}
+.me small{opacity:.65;margin-bottom:.4rem;text-transform:capitalize}
+.main{min-width:0;padding:clamp(1.2rem,3vw,2.4rem)}
+.main>section.top:first-of-type{margin-top:0}
+.mbar,.scrim{display:none}
+.sbbtn{width:2.8rem;height:2.8rem;border:1px solid var(--dk);border-radius:.8rem;background:none;display:grid;place-items:center;cursor:pointer;color:var(--dk)}
+@media(max-width:1200px){.dash .cols{grid-template-columns:1fr}.dash .grid4{grid-template-columns:1fr 1fr}}
+@media(max-width:860px){
+.shell{display:block}
+.sidenav{position:fixed;left:0;top:0;bottom:0;width:min(17rem,85vw);z-index:40;transform:translateX(-100%);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.sb-open .sidenav{transform:none;box-shadow:.3rem 0 0 rgba(25,26,35,.25)}
+.mbar{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}
+.scrim{display:block;position:fixed;inset:0;background:rgba(23,25,35,.55);z-index:35;opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s}
+.sb-open .scrim{opacity:1;visibility:visible}
+}
+
+/* Tablet dan HP */
+@media(max-width:1024px){
+.grid4{grid-template-columns:1fr 1fr}
+.grid3{grid-template-columns:1fr 1fr}
+.cols{grid-template-columns:1fr}
+.fbox{grid-template-columns:1fr 1fr}
+}
+@media(max-width:860px){
+.auth{grid-template-columns:1fr}
+.auth .c.g{min-height:16rem}
+}
+@media(max-width:600px){
+.grid4,.grid3,.fbox{grid-template-columns:1fr}
+.bar{flex-direction:column;align-items:flex-start}
+.acts .btn{flex:1 1 auto;text-align:center}
+}
+
+/* ===== Salurkan donasi, form donasi, Donasi saya, dan Donasi masuk ===== */
+.steps{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;margin:0 0 1.6rem;font-size:.95rem}
+.steps li{display:flex;align-items:center;gap:.55rem;opacity:.5}
+.steps li b{display:grid;place-items:center;width:1.9rem;height:1.9rem;border:1px solid var(--dk);border-radius:50%;font-weight:500;font-size:.85rem}
+.steps li.on,.steps li.done{opacity:1}
+.steps li.on b{background:var(--green);box-shadow:0 .12rem 0 var(--dk)}
+.steps li.done b{background:var(--dk);color:var(--green)}
+.pilih{margin-bottom:1.4rem}
+.lead{max-width:44rem;margin-bottom:1.6rem}
+.catatan{margin-top:1.6rem;font-size:.9rem;opacity:.75}
+
+/* Kartu pilihan program dan paket */
+.paket{justify-content:flex-start;gap:.8rem}
+.paket h3{max-width:none}
+.paket .harga{font-size:1.5rem;font-weight:500;line-height:1.2}
+.paket p{font-size:.95rem;max-width:none}
+.paket .more{margin-top:auto}
+.paket:hover .more i{transform:rotate(45deg) scale(1.08)}
+
+/* Form donasi */
+.bayar{display:grid;grid-template-columns:.8fr 1.2fr;gap:clamp(1.2rem,2.2vw,2.2rem);align-items:start;margin-top:clamp(1rem,2vw,1.6rem)}
+.bayar .c{justify-content:flex-start;gap:.9rem}
+.ringkas{position:sticky;top:1.5rem}
+.ringkas h2{font-size:1.6rem;font-weight:500;line-height:1.25}
+.ringkas .pk{font-size:1.1rem}
+.ringkas .besar{font-size:clamp(1.6rem,2.4vw,2.2rem);font-weight:500;line-height:1.15}
+.ringkas p{font-size:.95rem}
+.bayar .form h2{font-weight:500;font-size:1.5rem}
+.bayar .form .btn{width:100%;margin-top:.4rem}
+.kolom2{display:grid;grid-template-columns:1fr 1fr;gap:0 1rem}
+.form fieldset{border:0;padding:0;margin:0 0 .6rem;min-width:0}
+.form legend{font-size:.9rem;margin-bottom:.5rem;padding:0}
+.opsi{display:flex;align-items:flex-start;gap:.8rem;padding:.85rem 1rem;border:1px solid var(--dk);border-radius:.9rem;background:#fff;cursor:pointer;margin:0 0 .6rem;transition:background-color .2s,box-shadow .2s}
+.opsi:hover{background:var(--gray)}
+.opsi input{accent-color:var(--dk);width:1.15rem;height:1.15rem;margin-top:.2rem;flex:none}
+.opsi small{display:block;opacity:.7;font-size:.82rem}
+.opsi:has(input:checked){background:var(--green);box-shadow:0 .15rem 0 var(--dk)}
+.cek{display:flex;align-items:flex-start;gap:.7rem;margin:0 0 1.1rem;font-size:.9rem}
+.cek input{accent-color:var(--dk);width:1.15rem;height:1.15rem;margin-top:.15rem;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;margin:-.4rem 0 1.1rem}
+.chips .pill{background:#fff;cursor:pointer;font:inherit;font-size:.9rem}
+.chips .pill:hover{background:var(--gray)}
+.hitung{display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.4rem}
+.hitung input{margin-bottom:0;flex:1;min-width:0}
+.bayar .form .hitung .btn{width:auto;flex:none;margin-top:0;white-space:nowrap}
+.bantu{display:block;font-size:.82rem;opacity:.7;margin-bottom:1.1rem}
+.nominal-tetap{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.8rem 1rem;border:1px dashed var(--dk);border-radius:.9rem;background:#fff;margin-bottom:1.1rem}
+.nominal-tetap b{font-weight:500;font-size:1.15rem}
+
+/* Halaman konfirmasi donasi */
+.auth .c.l h2{font-weight:500;font-size:1.5rem}
+.rinci{display:grid;margin:.2rem 0 .8rem}
+.rinci div{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.55rem 0;border-bottom:1px solid #e0e0e0;font-size:.95rem}
+.rinci dt{opacity:.65}
+.rinci dd{margin:0;text-align:right;font-weight:500}
+.rinci .kode{font-size:1.1rem;letter-spacing:.03em}
+.petunjuk{border:1px dashed var(--dk);border-radius:1rem;padding:1rem 1.2rem;background:#fff;margin-bottom:.8rem}
+.petunjuk h3{font-size:1.05rem;font-weight:500;margin-bottom:.4rem}
+.petunjuk ol{margin:.4rem 0 0;padding-left:1.2rem;display:grid;gap:.3rem;font-size:.92rem}
+.petunjuk img{display:block;width:12rem;max-width:100%;height:auto;margin:.8rem 0 0;border-radius:.6rem;border:1px solid var(--dk)}
+.auth .c.l .acts{margin-top:auto;padding-top:.4rem}
+
+/* Donasi masuk (petugas) */
+input.cari{width:15rem;margin-bottom:0;padding:.6rem 1rem}
+.lencana{margin-left:auto;min-width:1.4rem;height:1.4rem;padding:0 .4rem;display:grid;place-items:center;border-radius:1rem;background:var(--dk);color:var(--green);font-size:.78rem;font-weight:500}
+
+@media(max-width:860px){
+.bayar{grid-template-columns:1fr}
+.ringkas{position:static}
+.pilih{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem}
+.pilih .pill{display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.25;min-height:3rem;padding:.55rem .9rem;border-radius:1.4rem}
+}
+@media(max-width:600px){
+.kolom2{grid-template-columns:1fr}
+.hitung{flex-direction:column;align-items:stretch}
+input.cari{width:100%}
+.pilih{grid-template-columns:repeat(2,1fr)}
+.pilih .pill{font-size:.92rem;padding:.55rem .6rem}
+}
+
+/* ===== Alur status donasi, pilihan bank, dan petunjuk pembayaran ===== */
+.badge.check{background:#d9ecff;color:#0b4a8a}
+.badge.off{background:#e6e6e6;color:#555}
+.opsi.mati{opacity:.5;cursor:not-allowed}
+.opsi.mati:hover{background:#fff}
+.channel{margin:-.2rem 0 .8rem 2rem}
+.pilih-bank{display:flex;flex-wrap:wrap;gap:.5rem}
+.bank{display:inline-block;margin:0;position:relative}
+.bank input{position:absolute;opacity:0;pointer-events:none}
+.bank span{display:inline-block;padding:.5rem 1rem;border:1px solid var(--dk);border-radius:2rem;background:#fff;font-size:.92rem;cursor:pointer;transition:background-color .2s,box-shadow .2s}
+.bank span:hover{background:var(--gray)}
+.bank input:checked + span{background:var(--green);box-shadow:0 .15rem 0 var(--dk)}
+.bank input:focus-visible + span{outline:2px solid var(--dk);outline-offset:2px}
+.petunjuk .tagihan{margin:.2rem 0 .8rem;font-size:1rem}
+.petunjuk .tagihan b{font-size:1.25rem;font-weight:500}
+.tujuan{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem;padding:.9rem 1rem;border:1px solid var(--dk);border-radius:.9rem;background:var(--gray);margin-bottom:.8rem}
+.tujuan .nomor{font-size:1.4rem;font-weight:500;letter-spacing:.04em}
+.tujuan .btn{margin-top:.5rem}
+.petunjuk img.qris,.qris-admin img.qris{display:block;width:14rem;max-width:100%;height:auto;margin:.4rem 0 .8rem;border:1px solid var(--dk);border-radius:.8rem;background:#fff}
+.petunjuk img.bukti{display:block;width:12.5rem;max-width:100%;height:auto;border:1px solid var(--dk);border-radius:.6rem}
+.peringatan{padding:.8rem 1rem;border:1px solid var(--dk);border-radius:.8rem;background:#ffd9d9;font-size:.92rem;margin-bottom:.8rem}
+.lapor{display:grid;gap:.6rem;margin-bottom:.9rem}
+.lapor input[type=file]{width:100%;margin:0;padding:.7rem 1rem;font:inherit;border:1px solid var(--dk);border-radius:.8rem;background:#fff}
+.ganti{border:1px solid var(--dk);border-radius:.9rem;background:#fff;padding:.7rem 1rem;margin-bottom:.8rem}
+.ganti summary{cursor:pointer;font-weight:500}
+.ganti form{margin-top:.9rem}
+.batal{margin:0 0 .8rem}
+.qris-admin{display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap}
+.qris-admin > div{flex:1;min-width:14rem}
+.qris-admin input[type=file]{width:auto;margin:0 .6rem 0 0;font:inherit}
+.kosong-qris{display:grid;place-items:center;width:11rem;height:11rem;border:1px dashed var(--dk);border-radius:.8rem;background:var(--gray);font-size:.9rem;text-align:center;padding:1rem}

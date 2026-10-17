@@ -1,18 +1,18 @@
-# Database binary files (hanya simpan .sql dump)
-sistem_donasi/*.frm
-sistem_donasi/*.ibd
-sistem_donasi/db.opt
+# Uploads (bukti transfer & berkas dinamis)
+uploads/*
+!uploads/.gitkeep
 
-# OS files
-Thumbs.db
-.DS_Store
-desktop.ini
-
-# IDE
+# IDE & Editor files
 .vscode/
 .idea/
-*.swp
-*.swo
+*.sublime-project
+*.sublime-workspace
 
-# Scratch/temp
-scratch_*
+# OS generated files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+*.log
+scratch/
